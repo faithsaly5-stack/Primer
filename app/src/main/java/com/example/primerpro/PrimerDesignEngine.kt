@@ -121,9 +121,14 @@ object PrimerDesignEngine {
 
     private fun hasHairpin(sequence: String): Boolean {
         val minStemLength = 5
-        for (i in 0..(sequence.length - minStemLength * 2)) {
+        val minLoopLength = 3 // DNA backbone requires space to physically bend
+
+        // Ensure we have enough sequence left for a stem, a loop, and the complementary stem
+        for (i in 0..(sequence.length - (minStemLength * 2 + minLoopLength))) {
             val stem = sequence.substring(i, i + minStemLength)
-            val rest = sequence.substring(i + minStemLength)
+            // Start looking for the complement AFTER the required loop space
+            val rest = sequence.substring(i + minStemLength + minLoopLength)
+            
             if (rest.contains(reverseComplement(stem))) {
                 return true
             }

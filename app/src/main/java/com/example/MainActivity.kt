@@ -15,18 +15,24 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -67,8 +73,8 @@ fun HomeScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("PrimerPro") },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                title = { Text("PrimerPro", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { padding ->
@@ -76,28 +82,76 @@ fun HomeScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Filled.Science, contentDescription = null, modifier = Modifier.size(100.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Primer Design Engine", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Science, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Primer Design Engine", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
             Spacer(modifier = Modifier.height(8.dp))
             Text("Developed by Shayan Yegan Nejad", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(56.dp))
             
-            Button(onClick = { navController.navigate("online") }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                Text("Online Random NCBI Mode")
-            }
+            DashboardCard(
+                title = "Online NCBI Mode",
+                subtitle = "Fetch & design from random NCBI gene",
+                icon = Icons.Filled.Language,
+                onClick = { navController.navigate("online") }
+            )
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = { navController.navigate("offline") }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                Text("Offline Mode (Pre-loaded)")
-            }
+            DashboardCard(
+                title = "Offline Pre-loaded Mode",
+                subtitle = "Fast local calculation for common genes",
+                icon = Icons.Filled.List,
+                onClick = { navController.navigate("offline") }
+            )
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = { navController.navigate("manual") }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                Text("Manual Input Mode")
+            DashboardCard(
+                title = "Manual Input Mode",
+                subtitle = "Paste any sequence for instant design",
+                icon = Icons.Filled.Edit,
+                onClick = { navController.navigate("manual") }
+            )
+        }
+    }
+}
+
+@Composable
+fun DashboardCard(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -122,15 +176,16 @@ fun OnlineModeScreen(navController: NavController) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp).verticalScroll(rememberScrollState())
         ) {
-            Text("Fetches a random gene from NCBI and designs primers.")
-            Spacer(modifier = Modifier.height(16.dp))
+            Text("Fetches a random gene from NCBI and designs perfectly optimized PCR primers.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(24.dp))
             
             Button(
                 onClick = {
@@ -162,7 +217,7 @@ fun OnlineModeScreen(navController: NavController) {
                                 resultPair = pair
                                 isLoading = false
                                 statusText = ""
-                                if (pair == null) Toast.makeText(context, "Could not find valid primers for this gene", Toast.LENGTH_SHORT).show()
+                                if (pair == null) Toast.makeText(context, "Could not find valid primers", Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
@@ -173,19 +228,25 @@ fun OnlineModeScreen(navController: NavController) {
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 enabled = !isLoading
             ) {
                 if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                else Text("Fetch & Design")
+                else Text("Fetch & Design", fontWeight = FontWeight.Bold)
             }
             
             if (statusText.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(statusText, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(24.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(statusText, modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.SemiBold)
+                }
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             resultPair?.let {
                 PrimerResultCard(it, geneFound, rawSeq, context)
@@ -213,27 +274,29 @@ fun OfflineModeScreen(navController: NavController) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp).verticalScroll(rememberScrollState())
         ) {
-            Text("Select a pre-loaded gene signature to design primers locally.")
-            Spacer(modifier = Modifier.height(16.dp))
+            Text("Select a pre-loaded gene signature to design primers locally without internet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(24.dp))
             
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded }
             ) {
-                TextField(
+                OutlinedTextField(
                     value = selectedGene,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Select Gene") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
                 ExposedDropdownMenu(
                     expanded = expanded,
@@ -241,7 +304,7 @@ fun OfflineModeScreen(navController: NavController) {
                 ) {
                     HardcodedSequences.names.forEach { selectionOption ->
                         DropdownMenuItem(
-                            text = { Text(selectionOption) },
+                            text = { Text(selectionOption, fontWeight = FontWeight.Medium) },
                             onClick = {
                                 selectedGene = selectionOption
                                 expanded = false
@@ -251,7 +314,7 @@ fun OfflineModeScreen(navController: NavController) {
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             Button(
                 onClick = {
@@ -274,14 +337,15 @@ fun OfflineModeScreen(navController: NavController) {
                         Toast.makeText(context, "Please select a gene.", Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 enabled = !isLoading
             ) {
                 if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                else Text("Design Primers")
+                else Text("Design Primers", fontWeight = FontWeight.Bold)
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             resultPair?.let {
                 PrimerResultCard(it, selectedGene, rawSeq, context)
@@ -307,24 +371,27 @@ fun ManualInputScreen(navController: NavController) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp).verticalScroll(rememberScrollState())
         ) {
-            Text("Paste a FASTA or raw nucleotide sequence here.")
-            Spacer(modifier = Modifier.height(8.dp))
+            Text("Paste a FASTA or raw nucleotide sequence here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(24.dp))
             
             OutlinedTextField(
                 value = rawSequence,
                 onValueChange = { rawSequence = it },
-                modifier = Modifier.fillMaxWidth().height(200.dp),
-                label = { Text("Sequence") }
+                modifier = Modifier.fillMaxWidth().height(250.dp),
+                label = { Text("Target Sequence") },
+                shape = RoundedCornerShape(12.dp),
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
             )
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             Button(
                 onClick = {
@@ -345,14 +412,15 @@ fun ManualInputScreen(navController: NavController) {
                         if (pair == null) Toast.makeText(context, "No valid primers found.", Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 enabled = !isLoading
             ) {
                 if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                else Text("Generate Primers")
+                else Text("Generate Primers", fontWeight = FontWeight.Bold)
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             resultPair?.let {
                 PrimerResultCard(it, "Manual Input", rawSequence, context)
@@ -364,48 +432,81 @@ fun ManualInputScreen(navController: NavController) {
 @Composable
 fun PrimerResultCard(pair: PrimerDesignEngine.PrimerPair, geneName: String, seq: String, context: Context) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Results for $geneName", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Product Size: ${pair.productSize} bp")
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        Column(modifier = Modifier.padding(24.dp)) {
+            Text("Results for $geneName", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Product Size: ${pair.productSize} bp", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
             
-            Text("Forward Primer", fontWeight = FontWeight.Bold)
-            Text("5' - ${pair.forward.sequence} - 3'", color = MaterialTheme.colorScheme.primary)
-            Text("Tm: %.2f °C | GC: %.1f %% | Length: %d bp".format(pair.forward.tm, pair.forward.gcPercent, pair.forward.length))
+            Spacer(modifier = Modifier.height(24.dp))
             
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Text("Reverse Primer", fontWeight = FontWeight.Bold)
-            Text("5' - ${pair.reverse.sequence} - 3'", color = MaterialTheme.colorScheme.primary)
-            Text("Tm: %.2f °C | GC: %.1f %% | Length: %d bp".format(pair.reverse.tm, pair.reverse.gcPercent, pair.reverse.length))
+            // Forward Primer Block
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                    Text("Forward Primer", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("5' - ${pair.forward.sequence} - 3'", fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text("Tm: %.1f °C".format(pair.forward.tm), style = MaterialTheme.typography.bodyMedium)
+                        Text("GC: %.1f%%".format(pair.forward.gcPercent), style = MaterialTheme.typography.bodyMedium)
+                        Text("Len: ${pair.forward.length}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = {
-                    ExportModule.shareAsText(context, geneName, pair.forward.sequence, pair.reverse.sequence, pair.forward.tm, pair.reverse.tm, pair.forward.gcPercent, pair.reverse.gcPercent, pair.productSize)
-                }) {
-                    Icon(Icons.Filled.Share, contentDescription = "Share Text")
-                    Spacer(Modifier.width(4.dp))
-                    Text("Report")
+            // Reverse Primer Block
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                    Text("Reverse Primer", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("5' - ${pair.reverse.sequence} - 3'", fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text("Tm: %.1f °C".format(pair.reverse.tm), style = MaterialTheme.typography.bodyMedium)
+                        Text("GC: %.1f%%".format(pair.reverse.gcPercent), style = MaterialTheme.typography.bodyMedium)
+                        Text("Len: ${pair.reverse.length}", style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
-                Button(onClick = {
-                    ExportModule.shareAsPdf(context, geneName, pair.forward.sequence, pair.reverse.sequence, pair.forward.tm, pair.reverse.tm, pair.forward.gcPercent, pair.reverse.gcPercent, pair.productSize)
-                }) {
-                    Icon(Icons.Filled.FileDownload, contentDescription = "Share PDF")
-                    Spacer(Modifier.width(4.dp))
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { ExportModule.shareAsText(context, geneName, pair.forward.sequence, pair.reverse.sequence, pair.forward.tm, pair.reverse.tm, pair.forward.gcPercent, pair.reverse.gcPercent, pair.productSize) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Share, contentDescription = "Report", modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("TXT")
+                }
+                Button(
+                    onClick = { ExportModule.shareAsPdf(context, geneName, pair.forward.sequence, pair.reverse.sequence, pair.forward.tm, pair.reverse.tm, pair.forward.gcPercent, pair.reverse.gcPercent, pair.productSize) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.FileDownload, contentDescription = "PDF", modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text("PDF")
                 }
-                Button(onClick = {
-                    ExportModule.shareGeneText(context, geneName, seq)
-                }) {
-                    Icon(Icons.Filled.FileDownload, contentDescription = "Share Gene")
-                    Spacer(Modifier.width(4.dp))
+                OutlinedButton(
+                    onClick = { ExportModule.shareGeneText(context, geneName, seq) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.FileDownload, contentDescription = "Gene", modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text("Gene")
                 }
             }
