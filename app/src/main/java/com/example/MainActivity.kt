@@ -188,52 +188,96 @@ fun OnlineModeScreen(navController: NavController) {
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp).verticalScroll(rememberScrollState())
         ) {
-            Text("Fetch a random gene from NCBI to design primers.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(modifier = Modifier.height(24.dp))
+            var queryText by remember { mutableStateOf("") }
             
-            Button(
-                onClick = {
-                    isLoading = true
-                    resultPair = null
-                    fetchedId = null
-                    statusText = "Starting..."
-                    scope.launch {
-                        try {
-                            val randomIds = listOf("NM_002046.7", "NM_001101.5", "NM_000546.6", "NM_001126.3")
-                            val id = randomIds.random()
-                            statusText = "Connecting to NCBI Entrez to fetch $id..."
-                            
-                            val response = withContext(Dispatchers.IO) {
-                                NCBIClient.api.fetchFasta(id).string()
+            Text("Enter a specific gene accession or fetch a random one.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            OutlinedTextField(
+                value = queryText,
+                onValueChange = { queryText = it },
+                label = { Text("Gene Accession or ID") },
+                placeholder = { Text("e.g. NM_001101.5") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !isLoading,
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            val performFetch: (String?) -> Unit = { specificId ->
+                isLoading = true
+                resultPair = null
+                fetchedId = null
+                statusText = "Starting..."
+                scope.launch {
+                    try {
+                        val idToFetch = if (specificId.isNullOrBlank()) {
+                            statusText = "Searching for a random human mRNA sequence..."
+                            val retstart = (0..100000).random()
+                            val searchResponse = withContext(Dispatchers.IO) {
+                                NCBIClient.api.searchRandomHumanMRNA(retstart).string()
                             }
                             
-                            statusText = "Parsing FASTA sequence..."
-                            val lines = response.split("\n")
-                            val header = lines.firstOrNull() ?: ">Unknown"
-                            val seq = lines.drop(1).joinToString("")
-                            
-                            withContext(Dispatchers.Main) {
-                                fetchedId = id
-                                fastaHeader = header
-                                rawSeq = seq
-                                isLoading = false
-                                statusText = ""
-                            }
-                        } catch (e: Exception) {
-                            withContext(Dispatchers.Main) {
-                                isLoading = false
-                                statusText = ""
-                                Toast.makeText(context, "Network Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
+                            val idMatch = Regex("\"idlist\"\\s*:\\s*\\[\\s*\"?(\\d+)\"?").find(searchResponse)
+                            idMatch?.groupValues?.get(1) ?: throw Exception("Could not parse ID from NCBI")
+                        } else {
+                            specificId.trim()
+                        }
+                        
+                        statusText = "Connecting to NCBI Entrez to fetch $idToFetch..."
+                        
+                        val response = withContext(Dispatchers.IO) {
+                            NCBIClient.api.fetchFasta(idToFetch).string()
+                        }
+                        
+                        if (response.isBlank() || !response.startsWith(">")) {
+                             throw Exception("Invalid sequence returned. Check Accession No.")
+                        }
+                        
+                        statusText = "Parsing FASTA sequence..."
+                        val lines = response.split("\n")
+                        val header = lines.firstOrNull() ?: ">Unknown"
+                        val seq = lines.drop(1).joinToString("")
+                        
+                        withContext(Dispatchers.Main) {
+                            fetchedId = idToFetch
+                            fastaHeader = header
+                            rawSeq = seq
+                            isLoading = false
+                            statusText = ""
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            isLoading = false
+                            statusText = ""
+                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
-                },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !isLoading
-            ) {
-                if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                else Text("Fetch Random NCBI Gene", fontWeight = FontWeight.Bold)
+                }
+            }
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Button(
+                    onClick = { performFetch(queryText) },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = !isLoading && queryText.isNotBlank()
+                ) {
+                    if (isLoading && queryText.isNotBlank()) CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                    else Text("Fetch Specific", fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+                
+                Button(
+                    onClick = { performFetch(null) },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    enabled = !isLoading
+                ) {
+                    if (isLoading && queryText.isBlank()) CircularProgressIndicator(color = MaterialTheme.colorScheme.onSecondary, modifier = Modifier.size(24.dp))
+                    else Text("Fetch Random", fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
             }
             
             if (statusText.isNotEmpty() && fetchedId == null) {
