@@ -82,8 +82,14 @@ object PrimerDesignEngine {
 
         if (!hasValidGCClamp(sequence)) return false
         if (hasHairpin(sequence)) return false
+        if (hasPolyRun(sequence)) return false
 
         return true
+    }
+
+    private fun hasPolyRun(sequence: String): Boolean {
+        // Looks for 4 or more consecutive A, T, C, or Gs
+        return Regex("A{4,}|T{4,}|C{4,}|G{4,}").containsMatchIn(sequence)
     }
 
     private fun calculateGC(sequence: String): Double {
@@ -103,23 +109,18 @@ object PrimerDesignEngine {
     }
 
     private fun hasValidGCClamp(sequence: String): Boolean {
-        val lastChar = sequence.last()
-        if (lastChar == 'A' || lastChar == 'T') return false
+        // Ensures the very last base is a G or C to anchor the polymerase
+        if (sequence.last() == 'A' || sequence.last() == 'T') return false
         
-        var gcTail = 0
-        for (i in sequence.length - 1 downTo 0) {
-            val c = sequence[i]
-            if (c == 'G' || c == 'C') {
-                gcTail++
-            } else {
-                break
-            }
-        }
-        return gcTail in 1..2
+        // Counts G/Cs in the last 5 bases. Ideal is 1, 2, or 3.
+        val lastFive = sequence.takeLast(5)
+        val gcCount = lastFive.count { it == 'G' || it == 'C' }
+        
+        return gcCount in 1..3
     }
 
     private fun hasHairpin(sequence: String): Boolean {
-        val minStemLength = 4
+        val minStemLength = 5
         for (i in 0..(sequence.length - minStemLength * 2)) {
             val stem = sequence.substring(i, i + minStemLength)
             val rest = sequence.substring(i + minStemLength)
@@ -131,13 +132,23 @@ object PrimerDesignEngine {
     }
 
     private fun formsPrimerDimer(forward: String, reverse: String): Boolean {
-        val minMatchLength = 4
+        val minMatchLength = 5
         for (i in 0..(forward.length - minMatchLength)) {
             val substr = forward.substring(i, i + minMatchLength)
             if (reverse.contains(reverseComplement(substr))) {
                 return true
             }
         }
+
+        // 3' cross-dimers: strictly check if the 3' ends (last 4-5 bases) are complementary
+        for (overlap in 4..5) {
+            val f3 = forward.takeLast(overlap)
+            val r3 = reverse.takeLast(overlap)
+            if (f3 == reverseComplement(r3)) {
+                return true
+            }
+        }
+
         return false
     }
 
