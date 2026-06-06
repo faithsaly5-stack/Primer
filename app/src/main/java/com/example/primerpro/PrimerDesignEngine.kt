@@ -43,7 +43,7 @@ object PrimerDesignEngine {
                 val targetRegion = validSequence.substring(i, i + len)
                 val reverseSeq = reverseComplement(targetRegion)
                 if (isValidPrimer(reverseSeq)) {
-                    validReverses.add(Primer(reverseSeq, calculateTm(reverseSeq), calculateGC(reverseSeq), i + len, len))
+                    validReverses.add(Primer(reverseSeq, calculateTm(reverseSeq), calculateGC(reverseSeq), i, len))
                 }
             }
         }
@@ -55,8 +55,8 @@ object PrimerDesignEngine {
         for (forward in validForwards) {
             for (reverse in validReverses) {
                 // Ensure reverse is downstream of forward and product size is reasonable (e.g., 50-1000 bp)
-                val productSize = reverse.startIndex - forward.startIndex
-                if (productSize in 50..1000) {
+                val productSize = (reverse.startIndex + reverse.length) - forward.startIndex
+                if (productSize in 50..1000 && reverse.startIndex > (forward.startIndex + forward.length)) {
                     val tmDiff = abs(forward.tm - reverse.tm)
                     if (tmDiff <= 5.0 && !formsPrimerDimer(forward.sequence, reverse.sequence)) {
                         // Score based on tmDiff and optimal tm (around 60)
@@ -103,10 +103,19 @@ object PrimerDesignEngine {
     }
 
     private fun hasValidGCClamp(sequence: String): Boolean {
-        // Must have 1 or 2 G/C bases at the 3' end (let's say the last 2 nucleotides)
-        val clamp = sequence.takeLast(2)
-        val gcCount = clamp.count { it == 'G' || it == 'C' }
-        return gcCount in 1..2
+        val lastChar = sequence.last()
+        if (lastChar == 'A' || lastChar == 'T') return false
+        
+        var gcTail = 0
+        for (i in sequence.length - 1 downTo 0) {
+            val c = sequence[i]
+            if (c == 'G' || c == 'C') {
+                gcTail++
+            } else {
+                break
+            }
+        }
+        return gcTail in 1..2
     }
 
     private fun hasHairpin(sequence: String): Boolean {
