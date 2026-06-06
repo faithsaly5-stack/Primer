@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
@@ -36,6 +37,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import android.content.Intent
+import android.net.Uri
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -509,6 +512,23 @@ fun PrimerResultCard(pair: PrimerDesignEngine.PrimerPair, geneName: String, seq:
                     Spacer(Modifier.width(8.dp))
                     Text("Gene")
                 }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = {
+                    val url = "https://www.ncbi.nlm.nih.gov/tools/primer-blast/index.cgi?INPUT_SEQUENCE=${Uri.encode(seq)}&PRIMER_LEFT_INPUT=${Uri.encode(pair.forward.sequence)}&PRIMER_RIGHT_INPUT=${Uri.encode(pair.reverse.sequence)}"
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+            ) {
+                Icon(Icons.Filled.OpenInNew, contentDescription = "Primer-BLAST", modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Verify Specificity in Primer-BLAST", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onTertiary)
             }
         }
     }
