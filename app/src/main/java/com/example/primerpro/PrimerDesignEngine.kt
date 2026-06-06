@@ -25,30 +25,20 @@ object PrimerDesignEngine {
         val validForwards = mutableListOf<Primer>()
         val validReversesByStart = mutableMapOf<Int, MutableList<Primer>>()
 
-        // Heuristic: Limit search to the first few thousands bps and skip every other base to speed up significantly
-        val maxSearchLimit = minOf(validSequence.length, 3000)
-
         // Find candidate forward primers
-        for (i in 0..(maxSearchLimit - 18) step 2) {
-            for (len in 18..22) {
-                if (i + len > maxSearchLimit) break
+        for (i in 0..(validSequence.length - 18)) {
+            for (len in 18..24) {
+                if (i + len > validSequence.length) break
                 val forwardSeq = validSequence.substring(i, i + len)
                 if (isValidPrimer(forwardSeq)) {
                     validForwards.add(Primer(forwardSeq, calculateTm(forwardSeq), calculateGC(forwardSeq), i, len))
-                    if (validForwards.size >= 100) break // Keep maximum 100 good candidates
                 }
             }
-            if (validForwards.size >= 100) break
         }
 
-        if (validForwards.isEmpty()) return null
-
-        // Find candidate reverse primers only in the relevant region (50 to 1000 bp downstream of forwards)
-        val minRevSearch = minOf(validForwards.first().startIndex + 50, validSequence.length)
-        val maxRevSearch = minOf(validForwards.last().startIndex + 1000, validSequence.length)
-
-        for (i in minRevSearch..(maxRevSearch - 18) step 2) {
-            for (len in 18..22) {
+        // Find candidate reverse primers
+        for (i in (validSequence.length - 18) downTo 0) {
+            for (len in 18..24) {
                 if (i + len > validSequence.length) break
                 val targetRegion = validSequence.substring(i, i + len)
                 val reverseSeq = reverseComplement(targetRegion)
@@ -64,9 +54,10 @@ object PrimerDesignEngine {
 
         for (forward in validForwards) {
             val minStart = forward.startIndex + 50
-            val maxStart = minOf(forward.startIndex + 1000, validSequence.length)
+            val maxStart = minOf(forward.startIndex + 1000, validSequence.length - 18)
             
-            for (revStart in minStart..maxStart) {
+            // Replicate original descending order of 'i' for reverse primers to ensure exact same tie-breaking
+            for (revStart in maxStart downTo minStart) {
                 val reverses = validReversesByStart[revStart]
                 if (reverses != null) {
                     for (reverse in reverses) {
@@ -84,11 +75,6 @@ object PrimerDesignEngine {
                         }
                     }
                 }
-            }
-            
-            // Early exit if an excellent pair is found to speed up calculation significantly
-            if (bestScore < 1.0) {
-                break
             }
         }
 
