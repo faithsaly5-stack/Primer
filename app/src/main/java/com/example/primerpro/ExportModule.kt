@@ -130,4 +130,13 @@ object ExportModule {
         }
         context.startActivity(Intent.createChooser(intent, "Share PDF via"))
     }
+
+    fun shareGeneText(context: Context, geneName: String, sequence: String) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Gene Sequence - $geneName")
+            putExtra(Intent.EXTRA_TEXT, ">$geneName\n$sequence")
+        }
+        context.startActivity(Intent.createChooser(intent, "Share Gene Sequence via"))
+    }
 }

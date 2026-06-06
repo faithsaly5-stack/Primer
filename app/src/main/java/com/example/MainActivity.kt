@@ -107,8 +107,10 @@ fun HomeScreen(navController: NavController) {
 @Composable
 fun OnlineModeScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
+    var statusText by remember { mutableStateOf("") }
     var resultPair by remember { mutableStateOf<PrimerDesignEngine.PrimerPair?>(null) }
     var geneFound by remember { mutableStateOf("") }
+    var rawSeq by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -134,29 +136,38 @@ fun OnlineModeScreen(navController: NavController) {
                 onClick = {
                     isLoading = true
                     resultPair = null
+                    statusText = "Starting..."
                     scope.launch {
                         try {
                             // Pick a random notable NCBI ID for demo purposes to avoid huge data downloads
                             val randomIds = listOf("NM_002046.7", "NM_001101.5", "NM_000546.6", "NM_001126.3")
                             val id = randomIds.random()
                             geneFound = "Gene Accession: $id"
+                            statusText = "Connecting to NCBI Entrez to fetch $id..."
                             
                             val response = withContext(Dispatchers.IO) {
                                 NCBIClient.api.fetchFasta(id).string()
                             }
                             
+                            statusText = "Parsing FASTA sequence..."
                             // Extract sequence from FASTA (skip line 1)
                             val seq = response.split("\n").drop(1).joinToString("")
+                            rawSeq = seq
                             
-                            val pair = PrimerDesignEngine.designPrimers(seq)
+                            statusText = "Running Biological Validation & Primer Design Engine..."
+                            val pair = withContext(Dispatchers.Default) {
+                                PrimerDesignEngine.designPrimers(seq)
+                            }
                             withContext(Dispatchers.Main) {
                                 resultPair = pair
                                 isLoading = false
+                                statusText = ""
                                 if (pair == null) Toast.makeText(context, "Could not find valid primers for this gene", Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
                                 isLoading = false
+                                statusText = ""
                                 Toast.makeText(context, "Network Error: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
@@ -169,10 +180,15 @@ fun OnlineModeScreen(navController: NavController) {
                 else Text("Fetch & Design")
             }
             
+            if (statusText.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(statusText, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            }
+            
             Spacer(modifier = Modifier.height(24.dp))
             
             resultPair?.let {
-                PrimerResultCard(it, geneFound, context)
+                PrimerResultCard(it, geneFound, rawSeq, context)
             }
         }
     }
@@ -184,6 +200,9 @@ fun OfflineModeScreen(navController: NavController) {
     var expanded by remember { mutableStateOf(false) }
     var selectedGene by remember { mutableStateOf("") }
     var resultPair by remember { mutableStateOf<PrimerDesignEngine.PrimerPair?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var rawSeq by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     Scaffold(
@@ -238,23 +257,34 @@ fun OfflineModeScreen(navController: NavController) {
                 onClick = {
                     val seq = HardcodedSequences.sequences[selectedGene]
                     if (seq != null) {
-                        resultPair = PrimerDesignEngine.designPrimers(seq)
-                        if (resultPair == null) {
-                            Toast.makeText(context, "No valid primers found.", Toast.LENGTH_SHORT).show()
+                        isLoading = true
+                        resultPair = null
+                        rawSeq = seq
+                        scope.launch {
+                            val pair = withContext(Dispatchers.Default) {
+                                PrimerDesignEngine.designPrimers(seq)
+                            }
+                            resultPair = pair
+                            isLoading = false
+                            if (pair == null) {
+                                Toast.makeText(context, "No valid primers found.", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     } else {
                         Toast.makeText(context, "Please select a gene.", Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp)
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                enabled = !isLoading
             ) {
-                Text("Design Primers")
+                if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                else Text("Design Primers")
             }
             
             Spacer(modifier = Modifier.height(24.dp))
             
             resultPair?.let {
-                PrimerResultCard(it, selectedGene, context)
+                PrimerResultCard(it, selectedGene, rawSeq, context)
             }
         }
     }
@@ -265,6 +295,8 @@ fun OfflineModeScreen(navController: NavController) {
 fun ManualInputScreen(navController: NavController) {
     var rawSequence by remember { mutableStateOf("") }
     var resultPair by remember { mutableStateOf<PrimerDesignEngine.PrimerPair?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     Scaffold(
@@ -296,32 +328,41 @@ fun ManualInputScreen(navController: NavController) {
             
             Button(
                 onClick = {
-                    // Quick rough extraction if it is FASTA
-                    val cleanSeq = if (rawSequence.startsWith(">")) {
-                        rawSequence.split("\n", limit = 2).getOrNull(1)?.replace("\n", "") ?: rawSequence
-                    } else {
-                        rawSequence
+                    isLoading = true
+                    resultPair = null
+                    scope.launch {
+                        // Quick rough extraction if it is FASTA
+                        val cleanSeq = if (rawSequence.startsWith(">")) {
+                            rawSequence.split("\n", limit = 2).getOrNull(1)?.replace("\n", "") ?: rawSequence
+                        } else {
+                            rawSequence
+                        }
+                        val pair = withContext(Dispatchers.Default) {
+                            PrimerDesignEngine.designPrimers(cleanSeq)
+                        }
+                        resultPair = pair
+                        isLoading = false
+                        if (pair == null) Toast.makeText(context, "No valid primers found.", Toast.LENGTH_SHORT).show()
                     }
-                    val pair = PrimerDesignEngine.designPrimers(cleanSeq)
-                    resultPair = pair
-                    if (pair == null) Toast.makeText(context, "No valid primers found.", Toast.LENGTH_SHORT).show()
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp)
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                enabled = !isLoading
             ) {
-                Text("Generate Primers")
+                if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                else Text("Generate Primers")
             }
             
             Spacer(modifier = Modifier.height(24.dp))
             
             resultPair?.let {
-                PrimerResultCard(it, "Manual Input", context)
+                PrimerResultCard(it, "Manual Input", rawSequence, context)
             }
         }
     }
 }
 
 @Composable
-fun PrimerResultCard(pair: PrimerDesignEngine.PrimerPair, geneName: String, context: Context) {
+fun PrimerResultCard(pair: PrimerDesignEngine.PrimerPair, geneName: String, seq: String, context: Context) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -351,14 +392,21 @@ fun PrimerResultCard(pair: PrimerDesignEngine.PrimerPair, geneName: String, cont
                 }) {
                     Icon(Icons.Filled.Share, contentDescription = "Share Text")
                     Spacer(Modifier.width(4.dp))
-                    Text("Share TXT")
+                    Text("Report")
                 }
                 Button(onClick = {
                     ExportModule.shareAsPdf(context, geneName, pair.forward.sequence, pair.reverse.sequence, pair.forward.tm, pair.reverse.tm, pair.forward.gcPercent, pair.reverse.gcPercent, pair.productSize)
                 }) {
                     Icon(Icons.Filled.FileDownload, contentDescription = "Share PDF")
                     Spacer(Modifier.width(4.dp))
-                    Text("Share PDF")
+                    Text("PDF")
+                }
+                Button(onClick = {
+                    ExportModule.shareGeneText(context, geneName, seq)
+                }) {
+                    Icon(Icons.Filled.FileDownload, contentDescription = "Share Gene")
+                    Spacer(Modifier.width(4.dp))
+                    Text("Gene")
                 }
             }
         }
