@@ -165,9 +165,10 @@ fun DashboardCard(title: String, subtitle: String, icon: androidx.compose.ui.gra
 fun OnlineModeScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var statusText by remember { mutableStateOf("") }
-    var resultPair by remember { mutableStateOf<PrimerDesignEngine.PrimerPair?>(null) }
-    var geneFound by remember { mutableStateOf("") }
+    var fetchedId by remember { mutableStateOf<String?>(null) }
+    var fastaHeader by remember { mutableStateOf("") }
     var rawSeq by remember { mutableStateOf("") }
+    var resultPair by remember { mutableStateOf<PrimerDesignEngine.PrimerPair?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -187,20 +188,19 @@ fun OnlineModeScreen(navController: NavController) {
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp).verticalScroll(rememberScrollState())
         ) {
-            Text("Fetches a random gene from NCBI and designs perfectly optimized PCR primers.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Fetch a random gene from NCBI to design primers.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(24.dp))
             
             Button(
                 onClick = {
                     isLoading = true
                     resultPair = null
+                    fetchedId = null
                     statusText = "Starting..."
                     scope.launch {
                         try {
-                            // Pick a random notable NCBI ID for demo purposes to avoid huge data downloads
                             val randomIds = listOf("NM_002046.7", "NM_001101.5", "NM_000546.6", "NM_001126.3")
                             val id = randomIds.random()
-                            geneFound = "Gene Accession: $id"
                             statusText = "Connecting to NCBI Entrez to fetch $id..."
                             
                             val response = withContext(Dispatchers.IO) {
@@ -208,19 +208,16 @@ fun OnlineModeScreen(navController: NavController) {
                             }
                             
                             statusText = "Parsing FASTA sequence..."
-                            // Extract sequence from FASTA (skip line 1)
-                            val seq = response.split("\n").drop(1).joinToString("")
-                            rawSeq = seq
+                            val lines = response.split("\n")
+                            val header = lines.firstOrNull() ?: ">Unknown"
+                            val seq = lines.drop(1).joinToString("")
                             
-                            statusText = "Running Biological Validation & Primer Design Engine..."
-                            val pair = withContext(Dispatchers.Default) {
-                                PrimerDesignEngine.designPrimers(seq)
-                            }
                             withContext(Dispatchers.Main) {
-                                resultPair = pair
+                                fetchedId = id
+                                fastaHeader = header
+                                rawSeq = seq
                                 isLoading = false
                                 statusText = ""
-                                if (pair == null) Toast.makeText(context, "Could not find valid primers", Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
@@ -236,10 +233,79 @@ fun OnlineModeScreen(navController: NavController) {
                 enabled = !isLoading
             ) {
                 if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                else Text("Fetch & Design", fontWeight = FontWeight.Bold)
+                else Text("Fetch Random NCBI Gene", fontWeight = FontWeight.Bold)
             }
             
-            if (statusText.isNotEmpty()) {
+            if (statusText.isNotEmpty() && fetchedId == null) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(statusText, modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            
+            if (fetchedId != null) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text("Gene Sequence Found", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(fastaHeader, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Sequence (${rawSeq.length} bp):", fontWeight = FontWeight.Bold)
+                        Text(rawSeq.take(100) + "...", fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Reference Link (Screenshot this):", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                        Text("https://www.ncbi.nlm.nih.gov/nuccore/$fetchedId", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = {
+                            val url = "https://www.ncbi.nlm.nih.gov/tools/primer-blast/index.cgi?INPUT_SEQUENCE=${Uri.encode(rawSeq)}"
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    ) {
+                        Text("Design via\nPrimer-BLAST", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onTertiary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                    
+                    Button(
+                        onClick = {
+                            statusText = "Running local engine..."
+                            scope.launch {
+                                val pair = withContext(Dispatchers.Default) {
+                                    PrimerDesignEngine.designPrimers(rawSeq)
+                                }
+                                withContext(Dispatchers.Main) {
+                                    resultPair = pair
+                                    statusText = ""
+                                    if (pair == null) Toast.makeText(context, "Could not find valid primers", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Calculate\nLocally", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                }
+            }
+            
+            if (statusText.isNotEmpty() && fetchedId != null) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
@@ -252,7 +318,7 @@ fun OnlineModeScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(32.dp))
             
             resultPair?.let {
-                PrimerResultCard(it, geneFound, rawSeq, context)
+                PrimerResultCard(it, fetchedId ?: "Unknown Gene", rawSeq, context)
             }
         }
     }
