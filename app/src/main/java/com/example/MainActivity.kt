@@ -262,7 +262,18 @@ fun OnlineModeScreen(navController: NavController) {
                         Text(rawSeq.take(100) + "...", fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("Reference Link (Screenshot this):", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
-                        Text("https://www.ncbi.nlm.nih.gov/nuccore/$fetchedId", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = "https://www.ncbi.nlm.nih.gov/nuccore/$fetchedId",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                            modifier = Modifier
+                                .clickable {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.ncbi.nlm.nih.gov/nuccore/$fetchedId"))
+                                    context.startActivity(intent)
+                                }
+                                .padding(vertical = 4.dp)
+                        )
                     }
                 }
                 
