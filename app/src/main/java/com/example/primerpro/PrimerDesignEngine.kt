@@ -110,28 +110,38 @@ object PrimerDesignEngine {
     }
 
     private fun calculateGC(sequence: String): Double {
-        val gcCount = sequence.count { it == 'G' || it == 'C' }
+        var gcCount = 0
+        for (i in 0 until sequence.length) {
+            val c = sequence[i]
+            if (c == 'G' || c == 'C') gcCount++
+        }
         return (gcCount.toDouble() / sequence.length) * 100.0
     }
 
     fun calculateTm(sequence: String): Double {
-        val wA = sequence.count { it == 'A' }
-        val xT = sequence.count { it == 'T' }
-        val yG = sequence.count { it == 'G' }
-        val zC = sequence.count { it == 'C' }
-        
-        // Simpler Wallace rule for < 14, but we only have 18-24. 
-        // Using standard salt-adjusted formula: 64.9 + 41 * (G+C - 16.4)/(A+T+G+C)
+        var wA = 0; var xT = 0; var yG = 0; var zC = 0
+        for (i in 0 until sequence.length) {
+            when (sequence[i]) {
+                'A' -> wA++
+                'T' -> xT++
+                'G' -> yG++
+                'C' -> zC++
+            }
+        }
         return 64.9 + 41.0 * (yG + zC - 16.4) / (wA + xT + yG + zC)
     }
 
     private fun hasValidGCClamp(sequence: String): Boolean {
         // Ensures the very last base is a G or C to anchor the polymerase
-        if (sequence.last() == 'A' || sequence.last() == 'T') return false
+        val lastChar = sequence[sequence.length - 1]
+        if (lastChar == 'A' || lastChar == 'T') return false
         
         // Counts G/Cs in the last 5 bases. Ideal is 1, 2, or 3.
-        val lastFive = sequence.takeLast(5)
-        val gcCount = lastFive.count { it == 'G' || it == 'C' }
+        var gcCount = 0
+        for (i in sequence.length - 5 until sequence.length) {
+            val c = sequence[i]
+            if (c == 'G' || c == 'C') gcCount++
+        }
         
         return gcCount in 1..3
     }
@@ -143,10 +153,10 @@ object PrimerDesignEngine {
         // Ensure we have enough sequence left for a stem, a loop, and the complementary stem
         for (i in 0..(sequence.length - (minStemLength * 2 + minLoopLength))) {
             val stem = sequence.substring(i, i + minStemLength)
-            // Start looking for the complement AFTER the required loop space
-            val rest = sequence.substring(i + minStemLength + minLoopLength)
+            val revCompStem = reverseComplement(stem)
             
-            if (rest.contains(reverseComplement(stem))) {
+            // Start looking for the complement AFTER the required loop space
+            if (sequence.indexOf(revCompStem, i + minStemLength + minLoopLength) != -1) {
                 return true
             }
         }
@@ -157,15 +167,15 @@ object PrimerDesignEngine {
         val minMatchLength = 5
         for (i in 0..(forward.length - minMatchLength)) {
             val substr = forward.substring(i, i + minMatchLength)
-            if (reverse.contains(reverseComplement(substr))) {
+            if (reverse.indexOf(reverseComplement(substr)) != -1) {
                 return true
             }
         }
 
         // 3' cross-dimers: strictly check if the 3' ends (last 4-5 bases) are complementary
         for (overlap in 4..5) {
-            val f3 = forward.takeLast(overlap)
-            val r3 = reverse.takeLast(overlap)
+            val f3 = forward.substring(forward.length - overlap)
+            val r3 = reverse.substring(reverse.length - overlap)
             if (f3 == reverseComplement(r3)) {
                 return true
             }
@@ -175,14 +185,12 @@ object PrimerDesignEngine {
     }
 
     private fun reverseComplement(sequence: String): String {
-        return sequence.reversed().map {
-            when (it) {
-                'A' -> 'T'
-                'T' -> 'A'
-                'G' -> 'C'
-                'C' -> 'G'
-                else -> it
-            }
-        }.joinToString("")
+        val array = CharArray(sequence.length)
+        var j = 0
+        for (i in sequence.length - 1 downTo 0) {
+            val c = sequence[i]
+            array[j++] = if (c == 'A') 'T' else if (c == 'T') 'A' else if (c == 'C') 'G' else if (c == 'G') 'C' else c
+        }
+        return String(array)
     }
 }
