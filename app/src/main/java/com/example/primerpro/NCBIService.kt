@@ -11,6 +11,9 @@ interface NCBIApi {
 
     @GET("entrez/eutils/esearch.fcgi?db=nucleotide&term=biomol+mrna[prop]+AND+homo+sapiens[organism]&retmax=1&retmode=json")
     suspend fun searchRandomHumanMRNA(@Query("retstart") retstart: Int): ResponseBody
+
+    @GET("entrez/eutils/esearch.fcgi?db=nucleotide&term=biomol+genomic[prop]+AND+homo+sapiens[organism]&retmax=1&retmode=json")
+    suspend fun searchRandomHumanGenomic(@Query("retstart") retstart: Int): ResponseBody
 }
 
 object NCBIClient {

@@ -91,12 +91,17 @@ fun HomeScreen(navController: NavController) {
         ) {
             Box(
                 modifier = Modifier
-                    .size(120.dp)
+                    .fillMaxWidth()
+                    .height(200.dp)
                     .clip(RoundedCornerShape(32.dp))
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Science, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Filled.Science, contentDescription = null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("DNA/RNA Insights", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                }
             }
             Spacer(modifier = Modifier.height(24.dp))
             Text("Primer Design Engine", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
@@ -189,6 +194,7 @@ fun OnlineModeScreen(navController: NavController) {
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp).verticalScroll(rememberScrollState())
         ) {
             var queryText by remember { mutableStateOf("") }
+            var isMrna by remember { mutableStateOf(true) }
             
             Text("Enter a specific gene accession or fetch a random one.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(16.dp))
@@ -196,13 +202,26 @@ fun OnlineModeScreen(navController: NavController) {
             OutlinedTextField(
                 value = queryText,
                 onValueChange = { queryText = it },
-                label = { Text("Gene Accession or ID") },
-                placeholder = { Text("e.g. NM_001101.5") },
+                label = { Text("Gene or mRNA Accession") },
+                placeholder = { Text("e.g. NM_001101.5 (mRNA) or NG_0123.1 (Genomic)") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 enabled = !isLoading,
                 shape = RoundedCornerShape(12.dp)
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Text("Random Fetch Type:", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { isMrna = true }) {
+                    RadioButton(selected = isMrna, onClick = { isMrna = true })
+                    Text("mRNA")
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { isMrna = false }) {
+                    RadioButton(selected = !isMrna, onClick = { isMrna = false })
+                    Text("Genomic DNA")
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
             
             val performFetch: (String?) -> Unit = { specificId ->
@@ -213,10 +232,14 @@ fun OnlineModeScreen(navController: NavController) {
                 scope.launch {
                     try {
                         val idToFetch = if (specificId.isNullOrBlank()) {
-                            statusText = "Searching for a random human mRNA sequence..."
-                            val retstart = (0..100000).random()
+                            statusText = "Searching for a random human ${if (isMrna) "mRNA" else "genomic"} sequence..."
+                            val retstart = (0..40000).random()
                             val searchResponse = withContext(Dispatchers.IO) {
-                                NCBIClient.api.searchRandomHumanMRNA(retstart).string()
+                                if (isMrna) {
+                                    NCBIClient.api.searchRandomHumanMRNA(retstart).string()
+                                } else {
+                                    NCBIClient.api.searchRandomHumanGenomic(retstart).string()
+                                }
                             }
                             
                             val idMatch = Regex("\"idlist\"\\s*:\\s*\\[\\s*\"?(\\d+)\"?").find(searchResponse)
@@ -298,7 +321,7 @@ fun OnlineModeScreen(navController: NavController) {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Text("Gene Sequence Found", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("Sequence Found", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(fastaHeader, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(8.dp))
@@ -608,30 +631,32 @@ fun PrimerResultCard(pair: PrimerDesignEngine.PrimerPair, geneName: String, seq:
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(
-                    onClick = { ExportModule.shareAsText(context, geneName, pair.forward.sequence, pair.reverse.sequence, pair.forward.tm, pair.reverse.tm, pair.forward.gcPercent, pair.reverse.gcPercent, pair.productSize) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Filled.Share, contentDescription = "Report", modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("TXT")
-                }
-                Button(
-                    onClick = { ExportModule.shareAsPdf(context, geneName, pair.forward.sequence, pair.reverse.sequence, pair.forward.tm, pair.reverse.tm, pair.forward.gcPercent, pair.reverse.gcPercent, pair.productSize) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Filled.FileDownload, contentDescription = "PDF", modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("PDF")
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { ExportModule.shareAsText(context, geneName, pair.forward.sequence, pair.reverse.sequence, pair.forward.tm, pair.reverse.tm, pair.forward.gcPercent, pair.reverse.gcPercent, pair.productSize) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = "TXT", modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Export TXT")
+                    }
+                    Button(
+                        onClick = { ExportModule.shareAsPdf(context, geneName, pair.forward.sequence, pair.reverse.sequence, pair.forward.tm, pair.reverse.tm, pair.forward.gcPercent, pair.reverse.gcPercent, pair.productSize) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Filled.FileDownload, contentDescription = "PDF", modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Export PDF")
+                    }
                 }
                 OutlinedButton(
                     onClick = { ExportModule.shareGeneText(context, geneName, seq) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Filled.FileDownload, contentDescription = "Gene", modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.Language, contentDescription = "Sequence", modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Gene")
+                    Text("Export Full Target Sequence")
                 }
             }
             
